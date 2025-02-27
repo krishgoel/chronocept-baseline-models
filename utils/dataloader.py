@@ -207,20 +207,20 @@ class DataLoader:
         """
         Processes a single Hugging Face dataset split:
           - Computes parent's embeddings.
-          - If include_axes is True, computes axes embeddings, flattens them, and concatenates with parent's embedding.
+          - If include_axes is True, computes axes embeddings.
+            For sequential embeddings (embedding=="bert_sequential"), the parent's sequence [T, D]
+            and each axis’s sequence [T, D] are concatenated along the time dimension
+            (resulting in [9*T, D]). For non-sequential embeddings, axes embeddings are flattened.
           - Normalizes targets if available.
         
         Returns:
-            A tuple (features, targets), where features is a tensor of shape [num_samples, feature_dim]
-            and targets is a NumPy array (or None if not available).
+            A tuple (features, targets), where features is a tensor and targets is a NumPy array (or None).
         """
         logger.info("Processing a single dataset split...")
         parent_texts = ds["parent_text"]
-        logger.info(f"Computing embeddings for {len(parent_texts)} parent texts...")
+        
         parent_emb = self.get_embeddings(parent_texts)
-
-        if self.include_axes:
-            logger.info("Computing axes embeddings...")
+        if self.embedding == "bert_sequential" and self.include_axes:
             axes_order = [
                 "main_outcome_axis", "static_axis", "generic_axis", 
                 "hypothetical_axis", "negation_axis", "intention_axis", 
@@ -231,11 +231,29 @@ class DataLoader:
                 axes_texts = [sample["axes"].get(key, "") for key in axes_order]
                 if self.shuffle_axes:
                     random.shuffle(axes_texts)
-                emb = self.get_embeddings(axes_texts)  # Shape: [8, emb_dim]
-                emb_flat = emb.flatten()  # Flatten to shape [8 * emb_dim]
+                emb = self.get_embeddings(axes_texts)
+                axes_emb_list.append(emb)
+            axes_emb = torch.stack(axes_emb_list)
+            combined = torch.cat([parent_emb.unsqueeze(1), axes_emb], dim=1)
+            combined_emb = combined.view(combined.size(0), -1, combined.size(-1))
+            logger.info(f"Combined sequential feature vector shape: {combined_emb.shape}")
+        elif self.include_axes:
+            axes_order = [
+                "main_outcome_axis", "static_axis", "generic_axis", 
+                "hypothetical_axis", "negation_axis", "intention_axis", 
+                "opinion_axis", "recurrent_axis"
+            ]
+            axes_emb_list = []
+            for sample in ds:
+                axes_texts = [sample["axes"].get(key, "") for key in axes_order]
+                if self.shuffle_axes:
+                    random.shuffle(axes_texts)
+                emb = self.get_embeddings(axes_texts)
+                emb_flat = emb.flatten()
                 axes_emb_list.append(emb_flat)
-            axes_emb = torch.stack(axes_emb_list)  # Shape: [N, 8 * emb_dim]
-            combined_emb = torch.cat([parent_emb, axes_emb], dim=1)  # Shape: [N, 9 * emb_dim]
+            axes_emb = torch.stack(axes_emb_list)
+            parent_emb = parent_emb.flatten(1)
+            combined_emb = torch.cat([parent_emb, axes_emb], dim=1)
             logger.info(f"Combined feature vector shape: {combined_emb.shape}")
         else:
             combined_emb = parent_emb
