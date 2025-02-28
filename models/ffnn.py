@@ -47,8 +47,7 @@ class FFNNModel(BaseModel, nn.Module):
             nn.Dropout(self.dropout),
             nn.Linear(self.hidden_dim // 2, 3)
         )
-        logger.info(f"FFNN built with input_dim={self.input_dim}, hidden_dim={self.hidden_dim}, "
-                    f"dropout={self.dropout}, weight_decay={self.weight_decay}, l1={self.l1}")
+        logger.info(f"FFNN built with input_dim={self.input_dim}, hidden_dim={self.hidden_dim}, dropout={self.dropout}, weight_decay={self.weight_decay}, l1={self.l1}")
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass through the network."""
