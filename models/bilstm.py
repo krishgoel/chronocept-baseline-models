@@ -13,8 +13,8 @@ class BiLSTMModel(BaseModel, nn.Module):
     
     This model is designed to work with sequential embeddings.
     Hyperparameters (to be tuned via grid search):
-      - hidden_dim: Hidden dimension for the LSTM.
-      - bidirectional: Whether the LSTM is bidirectional.
+        hidden_dim: Hidden dimension for the LSTM.
+        bidirectional: Whether the LSTM is bidirectional.
     """
     def __init__(self, input_dim: int, hidden_dim: int = 128, bidirectional: bool = True):
         params = {
@@ -24,7 +24,7 @@ class BiLSTMModel(BaseModel, nn.Module):
         }
         super().__init__(params)
         nn.Module.__init__(self)
-        self.input_dim = input_dim      # Per-token feature dimension (e.g. 768)
+        self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.bidirectional = bidirectional
         self.build_model()
@@ -55,8 +55,7 @@ class BiLSTMModel(BaseModel, nn.Module):
         Contains the training loop for the BiLSTM.
         
         Args:
-            train_data: Tuple (X_train, y_train) as NumPy arrays. For sequential embeddings, 
-                        X_train should have shape [N, seq_length, D].
+            train_data: Tuple (X_train, y_train) as NumPy arrays. For sequential embeddings, X_train should have shape [N, seq_length, D].
             valid_data: Tuple (X_valid, y_valid) similarly.
             lr: Learning rate.
             epochs: Number of epochs.
@@ -107,8 +106,7 @@ class BiLSTMModel(BaseModel, nn.Module):
         """
         Overloaded train method.
         
-        - If called with no arguments or a single boolean (e.g., self.train(False)),
-          it toggles the training mode by directly invoking nn.Module.train.
+        - If called with no arguments or a single boolean (e.g., self.train(False)), it toggles the training mode by directly invoking nn.Module.train.
         - If called with training data, it calls fit() and returns the losses.
         """
         if (not args and not kwargs) or (len(args) == 1 and isinstance(args[0], bool)):
@@ -120,8 +118,7 @@ class BiLSTMModel(BaseModel, nn.Module):
         Evaluates the BiLSTM model.
         
         Args:
-            test_data: Tuple (X_test, y_test) as NumPy arrays.
-                      For sequential embeddings, X_test should have shape [N, seq_length, D].
+            test_data: Tuple (X_test, y_test) as NumPy arrays. For sequential embeddings, X_test should have shape [N, seq_length, D].
             device: Device for evaluation.
         
         Returns:
