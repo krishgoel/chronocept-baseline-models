@@ -117,8 +117,7 @@ class FFNNModel(BaseModel, nn.Module):
         """
         Overloaded train method.
         
-        - If called with no arguments or a single boolean (e.g., self.train(False)),
-          it toggles the training mode by directly invoking nn.Module.train.
+        - If called with no arguments or a single boolean (e.g., self.train(False)), it toggles the training mode by directly invoking nn.Module.train.
         - If called with training data (as in grid search), it calls fit() and returns the losses.
         """
         if (not args and not kwargs) or (len(args) == 1 and isinstance(args[0], bool)):
