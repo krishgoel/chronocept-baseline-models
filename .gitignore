@@ -19,3 +19,6 @@ build/
 .idea/
 .vscode/
 *.swp
+
+# Model Weights
+baseline_weights/*/bert_regressor.pth
