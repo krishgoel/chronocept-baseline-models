@@ -203,23 +203,30 @@ class DataLoader:
         else:
             raise ValueError(f"Unsupported normalization method: {self.normalization_method}")
 
-    def _process_single_dataset(self, ds) -> Tuple[torch.Tensor, Optional[np.ndarray]]:
+    def _process_single_dataset(self, ds, shuffle_axes: bool = None) -> Tuple[torch.Tensor, Optional[np.ndarray]]:
         """
         Processes a single Hugging Face dataset split:
-          - Computes parent's embeddings.
-          - If include_axes is True, computes axes embeddings.
+        - Computes parent's embeddings.
+        - If include_axes is True, computes axes embeddings.
             For sequential embeddings (embedding=="bert_sequential"), the parent's sequence [T, D]
             and each axis’s sequence [T, D] are concatenated along the time dimension
             (resulting in [9*T, D]). For non-sequential embeddings, axes embeddings are flattened.
-          - Normalizes targets if available.
+        - Normalizes targets if available.
+        
+        Args:
+            ds: The dataset split.
+            shuffle_axes (bool, optional): If provided, whether to shuffle the axes. If None, uses self.shuffle_axes.
         
         Returns:
             A tuple (features, targets), where features is a tensor and targets is a NumPy array (or None).
         """
+        if shuffle_axes is None:
+            shuffle_axes = self.shuffle_axes
+        
         logger.info("Processing a single dataset split...")
         parent_texts = ds["parent_text"]
-        
         parent_emb = self.get_embeddings(parent_texts)
+        
         if self.embedding == "bert_sequential" and self.include_axes:
             axes_order = [
                 "main_outcome_axis", "static_axis", "generic_axis", 
@@ -229,13 +236,13 @@ class DataLoader:
             axes_emb_list = []
             for sample in ds:
                 axes_texts = [sample["axes"].get(key, "") for key in axes_order]
-                if self.shuffle_axes:
+                if shuffle_axes:
                     random.shuffle(axes_texts)
-                emb = self.get_embeddings(axes_texts)
+                emb = self.get_embeddings(axes_texts)  # Expected shape: [8, T, D]
                 axes_emb_list.append(emb)
-            axes_emb = torch.stack(axes_emb_list)
-            combined = torch.cat([parent_emb.unsqueeze(1), axes_emb], dim=1)
-            combined_emb = combined.view(combined.size(0), -1, combined.size(-1))
+            axes_emb = torch.stack(axes_emb_list)  # [N, 8, T, D]
+            combined = torch.cat([parent_emb.unsqueeze(1), axes_emb], dim=1)  # [N, 9, T, D]
+            combined_emb = combined.view(combined.size(0), -1, combined.size(-1))  # [N, 9*T, D]
             logger.info(f"Combined sequential feature vector shape: {combined_emb.shape}")
         elif self.include_axes:
             axes_order = [
@@ -246,10 +253,10 @@ class DataLoader:
             axes_emb_list = []
             for sample in ds:
                 axes_texts = [sample["axes"].get(key, "") for key in axes_order]
-                if self.shuffle_axes:
+                if shuffle_axes:
                     random.shuffle(axes_texts)
-                emb = self.get_embeddings(axes_texts)
-                emb_flat = emb.flatten()
+                emb = self.get_embeddings(axes_texts)  # shape [8, emb_dim]
+                emb_flat = emb.flatten()  # Flatten to [8 * emb_dim]
                 axes_emb_list.append(emb_flat)
             axes_emb = torch.stack(axes_emb_list)
             parent_emb = parent_emb.flatten(1)
@@ -274,18 +281,20 @@ class DataLoader:
         Processes the raw dataset(s) and returns feature vectors and targets.
         
         Behavior:
-          - If self.split is a single split (string), returns a tuple (features, targets).
-          - If self.split is None or a list, returns a dictionary mapping each split name to (features, targets).
-          
+        - If self.split is a single split (string), returns a tuple (features, targets).
+        - If self.split is None or a list, returns a dictionary mapping each split name to (features, targets).
+        
         The features for each sample consist of the parent's embedding concatenated with (if include_axes is True)
-        the flattened axes embeddings.
+        the flattened axes embeddings (or the sequential concatenation, if embedding=="bert_sequential").
         """
         logger.info("Starting preprocessing of dataset(s)...")
         if isinstance(self.dataset, dict):
             output = {}
             for split_name, ds in self.dataset.items():
-                logger.info(f"Processing split: {split_name} with {len(ds)} samples...")
-                output[split_name] = self._process_single_dataset(ds)
+                # Only shuffle axes for training split.
+                shuffle_flag = self.shuffle_axes if split_name == "train" else False
+                logger.info(f"Processing split: {split_name} with {len(ds)} samples (shuffle_axes={shuffle_flag})...")
+                output[split_name] = self._process_single_dataset(ds, shuffle_axes=shuffle_flag)
             logger.info("Preprocessing of all splits completed.")
             return output
         else:
