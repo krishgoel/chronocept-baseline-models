@@ -5,6 +5,7 @@ import random
 import logging
 from transformers import BertTokenizer, BertModel
 from typing import Literal, Tuple, Optional, Union, List
+import math
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -18,7 +19,8 @@ class DataLoader:
         max_len: int = 128,
         include_axes: bool = True,
         shuffle_axes: bool = False,
-        normalization: Literal["zscore", "minmax", "none", None] = "zscore"
+        normalization: Literal["zscore", "minmax", "none", None] = "zscore",
+        log_scale: float = 1.1 #default
     ):
         """
         Args:
@@ -54,6 +56,8 @@ class DataLoader:
         self.include_axes = include_axes
         self.shuffle_axes = shuffle_axes
         self.normalization_method = normalization
+        self.log_scale = log_scale
+        self._update_distribution_parameters()
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Using device: {self.device}")
@@ -302,3 +306,31 @@ class DataLoader:
             result = self._process_single_dataset(self.dataset)
             logger.info("Preprocessing of single split completed.")
             return result
+
+    def _update_distribution_parameters(self):
+        """
+        Updates scale, location, and skewness based on the specified logarithmic base (log_scale).
+        """
+        if self.log_scale <= 0 or self.log_scale == 1:
+            raise ValueError("log_scale must be > 0 and ≠ 1 for meaningful transformation.")
+        
+        b = self.log_scale
+
+        # sb = ln(1.1)/ln(b)
+        self.sb = math.log(1.1) / math.log(b)
+
+        # These could be default values or dynamically set later
+        default_location = 10.0
+        default_scale = 5.0      
+        default_skewness = 2.0   
+        # TODO
+        # do not set default values, we need to have them taken from the input layer
+
+        # Transformed parameters
+        self.location = math.log(default_location) / math.log(b)   # ξ′ = log_b(ξ)
+        self.scale = default_scale / math.log(b)                   # ω′ = ω / ln(b)
+        self.skewness = default_skewness                           # α′ = α (invariant)
+
+        logger.info(f"log_scale = {b}")
+        logger.info(f"sb (scaling factor) = {self.sb:.4f}")
+        logger.info(f"Transformed parameters: location={self.location:.4f}, scale={self.scale:.4f}, skewness={self.skewness}")
