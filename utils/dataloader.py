@@ -20,7 +20,7 @@ class DataLoader:
         include_axes: bool = True,
         shuffle_axes: bool = False,
         normalization: Literal["zscore", "minmax", "none", None] = "zscore",
-        log_scale: float = 1.1 #default
+        log_scale: float = 1.1
     ):
         """
         Args:
@@ -42,12 +42,15 @@ class DataLoader:
                 - "zscore" subtracts the mean and divides by the standard deviation (default),
                 - "minmax" scales values to the [0, 1] range,
                 - "none" or None applies no normalization.
+            log_scale (float): Base for the logarithmic scale transformation (defaults to 1.1).
         """
         logger.info("Initializing DataLoader...")
         if benchmark not in {"benchmark_1", "benchmark_2"}:
             raise ValueError(f"Unsupported benchmark: {benchmark}")
         if normalization not in {"zscore", "minmax", "none", None}:
             raise ValueError(f"Unsupported normalization method: {normalization}")
+        if log_scale <= 0 or log_scale == 1:
+            raise ValueError("log_scale must be > 0 and != 1 for base transformation.")
             
         self.benchmark = benchmark
         self.split = split
@@ -57,7 +60,6 @@ class DataLoader:
         self.shuffle_axes = shuffle_axes
         self.normalization_method = normalization
         self.log_scale = log_scale
-        self._update_distribution_parameters()
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Using device: {self.device}")
@@ -206,6 +208,34 @@ class DataLoader:
             return targets
         else:
             raise ValueError(f"Unsupported normalization method: {self.normalization_method}")
+    
+    def _convert_log_scale(self, targets: np.ndarray) -> np.ndarray:
+        """
+        Converts target values to a new logarithmic base.
+        Assumes original values were log-transformed with base 1.1.
+        """
+        logger.info("Converting target values to logarithmic scale...")
+
+        if self.log_scale <= 0 or self.log_scale == 1:
+            raise ValueError("log_scale must be > 0 and != 1 for base transformation.")
+        
+        if self.log_scale == 1.1:
+            logger.info("No conversion needed; log_scale is already 1.1.")
+            return targets
+
+        base_change_factor = np.log(self.log_scale) / np.log(1.1)
+
+        location = targets[:, 0]
+        scale = targets[:, 1]
+        skewness = targets[:, 2]
+
+        linear_location = np.power(1.1, location)  # Convert from log_1.1 to linear
+        new_location = np.log(linear_location) / np.log(self.log_scale)  # Convert linear to log_self.log_scale
+        new_scale = scale / base_change_factor  # Adjust scale to match new base
+
+        transformed = np.column_stack([new_location, new_scale, skewness])
+        
+        return transformed     
 
     def _process_single_dataset(self, ds, shuffle_axes: bool = None) -> Tuple[torch.Tensor, Optional[np.ndarray]]:
         """
@@ -275,6 +305,7 @@ class DataLoader:
             logger.info("Extracting and normalizing target values...")
             targets = [list(sample["target_values"].values()) for sample in ds]
             targets = np.array(targets)
+            targets = self._convert_log_scale(targets)
             targets = self._normalize_targets(targets)
         else:
             logger.info("No target values found in dataset.")
@@ -306,31 +337,3 @@ class DataLoader:
             result = self._process_single_dataset(self.dataset)
             logger.info("Preprocessing of single split completed.")
             return result
-
-    def _update_distribution_parameters(self):
-        """
-        Updates scale, location, and skewness based on the specified logarithmic base (log_scale).
-        """
-        if self.log_scale <= 0 or self.log_scale == 1:
-            raise ValueError("log_scale must be > 0 and ≠ 1 for meaningful transformation.")
-        
-        b = self.log_scale
-
-        # sb = ln(1.1)/ln(b)
-        self.sb = math.log(1.1) / math.log(b)
-
-        # These could be default values or dynamically set later
-        default_location = 10.0
-        default_scale = 5.0      
-        default_skewness = 2.0   
-        # TODO
-        # do not set default values, we need to have them taken from the input layer
-
-        # Transformed parameters
-        self.location = math.log(default_location) / math.log(b)   # ξ′ = log_b(ξ)
-        self.scale = default_scale / math.log(b)                   # ω′ = ω / ln(b)
-        self.skewness = default_skewness                           # α′ = α (invariant)
-
-        logger.info(f"log_scale = {b}")
-        logger.info(f"sb (scaling factor) = {self.sb:.4f}")
-        logger.info(f"Transformed parameters: location={self.location:.4f}, scale={self.scale:.4f}, skewness={self.skewness}")
