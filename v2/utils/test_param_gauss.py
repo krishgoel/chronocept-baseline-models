@@ -4,8 +4,8 @@ Test script for the new parameter-space Gaussian NLL approach.
 
 import torch
 import logging
-from models_v2 import RoBERTaRegression, DeBERTaRegression
-from utils_v2 import ImprovedDataLoader
+from v2.models import RoBERTaRegression, DeBERTaRegression
+from v2.utils import ImprovedDataLoader
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
