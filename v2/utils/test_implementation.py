@@ -4,8 +4,8 @@ Test script to verify the improved baseline implementation works correctly.
 
 import torch
 import logging
-from models_v2 import SBERTFFNN, RoBERTaRegression, DeBERTaRegression
-from utils_v2 import ImprovedDataLoader
+from v2.models import SBERTFFNN, RoBERTaRegression, DeBERTaRegression
+from v2.utils import ImprovedDataLoader
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -107,7 +107,7 @@ def test_loss_functions():
     logger.info("Testing loss functions...")
     
     try:
-        from models_v2.losses import SkewNormalNLL, GaussianNLL, MSELoss
+        from v2.models.losses import SkewNormalNLL, GaussianNLL, MSELoss
         
         # Create dummy predictions and targets
         predictions = torch.randn(4, 3)
@@ -141,7 +141,7 @@ def test_metrics():
     logger.info("Testing metrics...")
     
     try:
-        from utils_v2.metrics import evaluate_model_comprehensive
+        from v2.utils.metrics import evaluate_model_comprehensive
         
         # Create dummy predictions and targets
         predictions = torch.randn(10, 3).numpy()

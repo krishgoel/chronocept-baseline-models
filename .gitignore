@@ -70,3 +70,5 @@ plots/
 *.tmp
 *.bak
 *.swp
+
+.venv/

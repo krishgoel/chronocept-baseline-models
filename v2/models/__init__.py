@@ -1,6 +1,4 @@
 """
-Improved baseline models for Chronocept following review feedback.
-
 This module implements state-of-the-art baselines with proper distributional regression,
 modern encoders, and modular architecture.
 """

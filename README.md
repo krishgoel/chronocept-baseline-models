@@ -1,4 +1,7 @@
 # Chronocept Baseline Models
+
+![Chroncept Poster](Chronocept_Poster_EACL_2026.png)
+
 > **Publication**: [Chronocept: Instilling a Sense of Time in Machines](https://arxiv.org/abs/2505.07637)  
 **Authors:** Krish Goel, Sanskar Pandey, KS Mahadevan, Harsh Kumar, and Vishesh Khadaria  
 
@@ -6,10 +9,23 @@
 
 This repository contains baseline implementations for Chronocept, the world's first benchmark for modeling validity of textual information as continuous probability distributions over time. The models predict three parameters (location ξ, scale ω, skewness α) that characterize the temporal relevance of textual information using a skew-normal distribution, over a logarithmically transformed time axis.
 
-## `DataLoader` Implementation
-The `DataLoader` class [utils/dataloader.py](utils/dataloader.py) is used to load and preprocess the data. It supports multiple embedding methods and data splits.
+## Repository Structure
 
-### Parameters
+The repository is organized to retain both the original `v1` baselines and the improved `v2` baselines:
+
+- **`v1/`**: Original baseline implementations.
+  - `models/`: Model definitions (e.g., SBERT, BiLSTM, FFNN).
+  - `utils/`: DataLoader and metric utilities.
+  - `experiments/`: Jupyter notebooks containing all experiment code for `v1` models. 
+- **`v2/`**: Improved baselines introduced (e.g., MT-DNN, Skew-Normal NLL variants).
+  - `models/`: Improved modular model components (encoders, heads, pooling).
+  - `utils/`: Updated DataLoader and training utilities.
+  - `experiments/`: Jupyter notebooks for ablation studies and benchmarks using the `v2` codebase. 
+
+## `DataLoader` Implementation
+The `DataLoader` class is used to load and preprocess the data. It supports multiple embedding methods and data splits. Depending on the baseline version, use either `from v1.utils import DataLoader` or `from v2.utils import ImprovedDataLoader`.
+
+### Parameters (v1 `DataLoader`)
 
 - **`benchmark`** (`Literal["benchmark_1", "benchmark_2"]`):  
   Benchmark identifier.
@@ -46,7 +62,7 @@ The `DataLoader` class [utils/dataloader.py](utils/dataloader.py) is used to loa
 
 ### Usage Example
 ```python
-from utils import DataLoader
+from v1.utils import DataLoader
 
 # Initialize loader
 dl = DataLoader(
