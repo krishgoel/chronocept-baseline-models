@@ -1,4 +1,7 @@
 # Chronocept Baseline Models
+
+![Chroncept Poster](Chronocept_Poster_EACL_2026.png)
+
 > **Publication**: [Chronocept: Instilling a Sense of Time in Machines](https://arxiv.org/abs/2505.07637)  
 **Authors:** Krish Goel, Sanskar Pandey, KS Mahadevan, Harsh Kumar, and Vishesh Khadaria  
 
